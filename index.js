@@ -1,19 +1,20 @@
+
 const { 
     Client, GatewayIntentBits, ActionRowBuilder, EmbedBuilder, 
     StringSelectMenuBuilder, PermissionsBitField, AttachmentBuilder 
 } = require('discord.js');
 const express = require('express');
 
-// --- SERVER WEB PER CRON-JOB (SIMILE A FLASK) ---
+// --- SERVER WEB PER CRON-JOB ---
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-    res.send('GVRM Bot este ONLINE și funcționează!'); // Messaggio che vedrà Cron-job
+    res.send('GVRM Bot este ONLINE!');
 });
 
 app.listen(PORT, () => {
-    console.log(`Serverul web pornit pe portul ${PORT}`);
+    console.log(`Server web pornit pe portul ${PORT}`);
 });
 
 // --- LOGICA DISCORD BOT ---
@@ -25,24 +26,50 @@ const client = new Client({
     ]
 });
 
-let staffRoleId = null; // Memorizzato in RAM (si resetta al riavvio su Render Free)
+// Variabile temporanea per lo Staff Role
+let staffRoleId = null;
 
-client.once('ready', () => {
+client.once('ready', async () => {
     console.log(`✅ Autentificat ca ${client.user.tag}`);
+    
+    // Registrazione comandi
+    const commands = [
+        { name: 'setup', description: 'Setează rolul staff', options: [{ name: 'role', type: 8, description: 'Alege rolul', required: true }] },
+        { name: 'send', description: 'Trimite panoul de tichete' },
+        { name: 'help', description: 'Vezi toate comenzile' },
+        { name: 'close', description: 'Închide tichetul' },
+        { name: 'delete', description: 'Șterge tichetul' },
+        { name: 'transcript', description: 'Descarcă chat-ul' },
+    ];
+
+    try {
+        await client.application.commands.set(commands);
+        console.log('✅ Comenzi Slash înregistrate!');
+    } catch (error) {
+        console.error('❌ Eroare la înregistrarea comenzilor:', error);
+    }
 });
 
 client.on('interactionCreate', async interaction => {
+    // Gestione Comandi Slash
     if (interaction.isChatInputCommand()) {
         const { commandName } = interaction;
 
-        // Setup Ruolo Staff
+        if (commandName === 'help') {
+            return interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('Comenzi GVRM')
+                    .setDescription('`/setup` - Setează staff\n`/send` - Trimite panoul\n`/close` - Închide ticket\n`/delete` - Șterge ticket\n`/transcript` - Salvează chat')
+                    .setColor('#5865F2')]
+            });
+        }
+
         if (commandName === 'setup') {
             const role = interaction.options.getRole('role');
             staffRoleId = role.id;
-            return interaction.reply({ content: `✅ Rolul de staff a fost setat: **${role.name}**`, ephemeral: true });
+            return interaction.reply({ content: `✅ Rolul staff a fost setat: **${role.name}**`, ephemeral: true });
         }
 
-        // Pannello Ticket
         if (commandName === 'send') {
             const menu = new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
@@ -54,34 +81,29 @@ client.on('interactionCreate', async interaction => {
                         { label: 'Bug', value: 'bug', emoji: '🐛' },
                     ]),
             );
-
             const embed = new EmbedBuilder()
-                .setTitle('📩 Centrul de Suport GVRM')
-                .setDescription('Salut! Te rugăm să alegi o categorie pentru a deschide un tichet.')
+                .setTitle('📩 Suport GVRM')
+                .setDescription('Selectează o categorie de mai jos per a deschide un tichet.')
                 .setColor('#00ff00');
-
             return interaction.reply({ embeds: [embed], components: [menu] });
         }
 
-        // Chiudi Ticket
         if (commandName === 'close') {
-            if (!interaction.channel.name.startsWith('ticket-')) return interaction.reply('Acesta nu este un tichet!');
+            if (!interaction.channel.name.startsWith('ticket-')) return interaction.reply('Nu este un tichet!');
             await interaction.channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { ViewChannel: false });
             await interaction.channel.setName(`closed-${interaction.channel.name.split('-')[1]}`);
-            return interaction.reply('🔒 **Tichet închis.** Folosește `/delete` pentru ștergere.');
+            return interaction.reply('🔒 Tichet închis.');
         }
 
-        // Elimina Ticket
         if (commandName === 'delete') {
-            if (!interaction.channel.name.startsWith('closed-')) return interaction.reply('Închide tichetul prima dată!');
+            if (!interaction.channel.name.startsWith('closed-')) return interaction.reply('Închide tichetul mai întâi!');
             await interaction.reply('Se șterge...');
             setTimeout(() => interaction.channel.delete(), 3000);
         }
 
-        // Transcript
         if (commandName === 'transcript') {
             const messages = await interaction.channel.messages.fetch();
-            let log = `TRANSCRIPT GVRM - ${interaction.channel.name}\n\n`;
+            let log = `TRANSCRIPT GVRM\n\n`;
             messages.reverse().forEach(m => {
                 log += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`;
             });
@@ -101,22 +123,9 @@ client.on('interactionCreate', async interaction => {
                 { id: staffRoleId || interaction.guild.id, allow: [PermissionsBitField.Flags.ViewChannel] }
             ],
         });
-
         await interaction.reply({ content: `✅ Tichet creat: ${channel}`, ephemeral: true });
-        await channel.send({ content: `Salut ${interaction.user}! Categoria aleasă: **${category}**. Așteaptă un membru Staff.` });
+        await channel.send({ content: `Salut ${interaction.user}! Categoria: **${category}**.` });
     }
-});
-
-// Registrazione Comandi Slash
-client.on('ready', async () => {
-    const commands = [
-        { name: 'setup', description: 'Setează rolul staff', options: [{ name: 'role', type: 8, description: 'Alege rolul', required: true }] },
-        { name: 'send', description: 'Trimite panoul' },
-        { name: 'close', description: 'Închide tichetul' },
-        { name: 'delete', description: 'Șterge tichetul' },
-        { name: 'transcript', description: 'Descarcă chat-ul' },
-    ];
-    await client.application.commands.set(commands);
 });
 
 client.login(process.env.TOKEN);
