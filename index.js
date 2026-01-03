@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-    res.send('GVRM Bot este ONLINE!');
+    res.send('GRRM Bot este ONLINE!');
 });
 
 app.listen(PORT, () => {
@@ -75,8 +75,8 @@ client.on('interactionCreate', async interaction => {
             );
 
             const embed = new EmbedBuilder()
-                .setTitle('📩 Suport GVRM')
-                .setDescription('Selectează o categorie de mai jos pentru a deschide un tichet.')
+                .setTitle('📩 Suport GRRM')
+                .setDescription('Selectează o categorie de mai jos pentru a deschide un ticket.')
                 .setColor('#00ff00');
 
             return interaction.editReply({ embeds: [embed], components: [menu] });
@@ -86,7 +86,7 @@ client.on('interactionCreate', async interaction => {
             if (!interaction.channel.name.startsWith('ticket-')) return interaction.reply('Acesta nu este un tichet!');
             await interaction.channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { ViewChannel: false });
             await interaction.channel.setName(`closed-${interaction.channel.name.split('-')[1] || 'user'}`);
-            return interaction.reply('🔒 **Tichet închis.**');
+            return interaction.reply('🔒 **Ticket închis.**');
         }
 
         if (commandName === 'delete') {
@@ -119,11 +119,11 @@ client.on('interactionCreate', async interaction => {
             ],
         });
 
-        await interaction.reply({ content: `✅ Tichet creat: ${channel}`, ephemeral: true });
+        await interaction.reply({ content: `✅ Ticket creat: ${channel}`, ephemeral: true });
         
         const welcomeEmbed = new EmbedBuilder()
-            .setTitle(`🆘 Tichet ${category}`)
-            .setDescription(`Salut ${interaction.user}, echipa staff te va ajuta imediat. Descrie problema ta qui.`)
+            .setTitle(`🆘 Ticket ${category}`)
+            .setDescription(`Salut ${interaction.user}, echipa staff te va ajuta imediat. Descrie problema ta aici.`)
             .setColor('#f1c40f');
 
         await channel.send({ embeds: [welcomeEmbed] });
